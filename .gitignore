@@ -1,6 +1,9 @@
 # Claude Code project instructions (local only, never commit)
 CLAUDE.md
 
+# Local showcase folder for README screenshots
+lst-demo/
+
 # Logs
 logs
 *.log
