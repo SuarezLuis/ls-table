@@ -4,8 +4,8 @@
   "description": "",
   "main": "./bin/index.js",
   "bin": {
-    "ls-table": "./bin/index.js",
-    "lst": "./bin/index.js"
+    "ls-table": "bin/index.js",
+    "lst": "bin/index.js"
   },
   "scripts": {
     "build": "tsc ./lib/src.ts --outDir ./bin",
