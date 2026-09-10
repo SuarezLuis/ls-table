@@ -2,7 +2,8 @@
 
 A CLI that lists a directory's contents as a table — folders first, human-readable sizes, and an emoji per file type.
 
-![image](https://user-images.githubusercontent.com/20325995/196329855-5a1f6f0d-6ec2-4d19-8633-5a11cb310d92.png)
+<img width="874" height="729" alt="image" src="https://github.com/user-attachments/assets/f04c549e-d523-49fc-90da-df3b5eca4be9" />
+
 
 ## Install
 
