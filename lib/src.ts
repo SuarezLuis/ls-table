@@ -20,7 +20,7 @@ Options:
   --sort <key>     Sort by "name" (default), "size", "created", or "modified"
   --dirs-only      Only list folders
   --files-only     Only list files
-  --no-color       Disable colored output
+  --no-color       Disable colored output and per-extension file emoji
   -h, --help       Show this help message and exit
 
 Note: --sort created relies on filesystem birthtime, which isn't
@@ -131,7 +131,13 @@ interface RecursiveSize {
   incomplete: boolean;
 }
 
-const getRecursiveSize = (dirPath: string): RecursiveSize => {
+const RECURSIVE_SIZE_TIME_BUDGET_MS = 500;
+
+const getRecursiveSize = (dirPath: string, deadline: number): RecursiveSize => {
+  if (Date.now() > deadline) {
+    return { bytes: 0, incomplete: true };
+  }
+
   let entries: string[];
   try {
     entries = fs.readdirSync(dirPath);
@@ -142,6 +148,11 @@ const getRecursiveSize = (dirPath: string): RecursiveSize => {
   let bytes = 0;
   let incomplete = false;
   for (const entry of entries) {
+    if (Date.now() > deadline) {
+      incomplete = true;
+      break;
+    }
+
     const entryPath = `${dirPath}/${entry}`;
     let stats;
     try {
@@ -154,7 +165,7 @@ const getRecursiveSize = (dirPath: string): RecursiveSize => {
       continue;
     }
     if (stats.isDirectory()) {
-      const nested = getRecursiveSize(entryPath);
+      const nested = getRecursiveSize(entryPath, deadline);
       bytes += nested.bytes;
       incomplete = incomplete || nested.incomplete;
     } else {
@@ -290,7 +301,10 @@ const main = () => {
     let size = "0 B";
     if (isFolder) {
       if (filterType !== "files") {
-        const recursive = getRecursiveSize(itemPath);
+        const recursive = getRecursiveSize(
+          itemPath,
+          Date.now() + RECURSIVE_SIZE_TIME_BUDGET_MS
+        );
         sizeBytes = recursive.bytes;
         size = prettierBytes(sizeBytes) + (recursive.incomplete ? "+" : "");
         hadIncompleteSize = hadIncompleteSize || recursive.incomplete;
@@ -302,7 +316,9 @@ const main = () => {
 
     const entry: Item = {
       rawName: item,
-      name: isFolder ? `📁 ${item}` : `${getFileEmoji(item)} ${item}`,
+      name: isFolder
+        ? `📁 ${item}`
+        : `${noColor ? "📄" : getFileEmoji(item)} ${item}`,
       size,
       sizeBytes,
       mtimeMs: stats.mtimeMs,
@@ -393,7 +409,7 @@ const main = () => {
 
   if (hadIncompleteSize) {
     console.error(
-      "Note: sizes marked with + are incomplete — some subfolder contents couldn't be read (permission denied)."
+      "Note: sizes marked with + are incomplete — either a permission error, or the folder is too large to fully scan quickly."
     );
   }
 };

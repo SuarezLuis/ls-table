@@ -21,7 +21,7 @@ lst [path] [options]
 
 Defaults to the current directory when no path is given. Hidden files are excluded unless `-a`/`--all` is passed. Folder sizes are computed recursively (their full contents, not just the directory entry itself), and the total at the bottom reflects whatever's currently listed after any filters.
 
-An entry `lst` can't read (e.g. a broken symlink) shows up as `❓` with an unknown size instead of crashing the listing. A folder size followed by `+` (e.g. `4.1 MB+`) means part of that folder couldn't be read — usually a permissions issue — so the real size is at least that much.
+An entry `lst` can't read (e.g. a broken symlink) shows up as `❓` with an unknown size instead of crashing the listing. Recursive folder sizing gives each folder a short time budget rather than scanning indefinitely, so a folder size followed by `+` (e.g. `4.1 MB+`) means the real size is at least that much — either a permission error, or the folder (e.g. a large `node_modules`) was too big to fully scan quickly.
 
 ## Options
 
@@ -33,7 +33,7 @@ An entry `lst` can't read (e.g. a broken symlink) shows up as `❓` with an unkn
 | `--sort <key>` | Sort by `name` (default), `size`, `created`, or `modified` |
 | `--dirs-only` | Only list folders |
 | `--files-only` | Only list files |
-| `--no-color` | Disable colored output |
+| `--no-color` | Disable colored output and per-extension file emoji |
 | `-h`, `--help` | Show the help message and exit |
 
 `--sort created` relies on filesystem birthtime, which isn't available on all platforms/filesystems (notably some Linux setups).

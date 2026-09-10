@@ -14,7 +14,7 @@ var os = require("os");
 var fs = require("fs");
 var path = require("path");
 var table_1 = require("table");
-var HELP_TEXT = "Usage: lst [path] [options]\n\nList a directory's contents as a table (name + size).\nFolders are always listed before files.\n\nArguments:\n  path             Directory to list (default: current directory)\n\nOptions:\n  -a, --all        Include hidden files (dotfiles)\n  -l, --long       Show permissions and last modified time\n  -r, --reverse    Reverse the sort order\n  --sort <key>     Sort by \"name\" (default), \"size\", \"created\", or \"modified\"\n  --dirs-only      Only list folders\n  --files-only     Only list files\n  --no-color       Disable colored output\n  -h, --help       Show this help message and exit\n\nNote: --sort created relies on filesystem birthtime, which isn't\navailable on all platforms/filesystems (notably some Linux setups).";
+var HELP_TEXT = "Usage: lst [path] [options]\n\nList a directory's contents as a table (name + size).\nFolders are always listed before files.\n\nArguments:\n  path             Directory to list (default: current directory)\n\nOptions:\n  -a, --all        Include hidden files (dotfiles)\n  -l, --long       Show permissions and last modified time\n  -r, --reverse    Reverse the sort order\n  --sort <key>     Sort by \"name\" (default), \"size\", \"created\", or \"modified\"\n  --dirs-only      Only list folders\n  --files-only     Only list files\n  --no-color       Disable colored output and per-extension file emoji\n  -h, --help       Show this help message and exit\n\nNote: --sort created relies on filesystem birthtime, which isn't\navailable on all platforms/filesystems (notably some Linux setups).";
 var pad2 = function (n) { return String(n).padStart(2, "0"); };
 var formatDate = function (date) {
     return "".concat(date.getFullYear(), "-").concat(pad2(date.getMonth() + 1), "-").concat(pad2(date.getDate()), " ").concat(pad2(date.getHours()), ":").concat(pad2(date.getMinutes()));
@@ -108,7 +108,11 @@ var formatPermissions = function (mode, isDirectory) {
     var perms = mode & 511;
     return "".concat(isDirectory ? "d" : "-").concat(rwx((perms >> 6) & 7)).concat(rwx((perms >> 3) & 7)).concat(rwx(perms & 7));
 };
-var getRecursiveSize = function (dirPath) {
+var RECURSIVE_SIZE_TIME_BUDGET_MS = 500;
+var getRecursiveSize = function (dirPath, deadline) {
+    if (Date.now() > deadline) {
+        return { bytes: 0, incomplete: true };
+    }
     var entries;
     try {
         entries = fs.readdirSync(dirPath);
@@ -120,6 +124,10 @@ var getRecursiveSize = function (dirPath) {
     var incomplete = false;
     for (var _i = 0, entries_1 = entries; _i < entries_1.length; _i++) {
         var entry = entries_1[_i];
+        if (Date.now() > deadline) {
+            incomplete = true;
+            break;
+        }
         var entryPath = "".concat(dirPath, "/").concat(entry);
         var stats = void 0;
         try {
@@ -133,7 +141,7 @@ var getRecursiveSize = function (dirPath) {
             continue;
         }
         if (stats.isDirectory()) {
-            var nested = getRecursiveSize(entryPath);
+            var nested = getRecursiveSize(entryPath, deadline);
             bytes += nested.bytes;
             incomplete = incomplete || nested.incomplete;
         }
@@ -249,7 +257,7 @@ var main = function () {
         var size = "0 B";
         if (isFolder) {
             if (filterType !== "files") {
-                var recursive = getRecursiveSize(itemPath);
+                var recursive = getRecursiveSize(itemPath, Date.now() + RECURSIVE_SIZE_TIME_BUDGET_MS);
                 sizeBytes = recursive.bytes;
                 size = prettierBytes(sizeBytes) + (recursive.incomplete ? "+" : "");
                 hadIncompleteSize = hadIncompleteSize || recursive.incomplete;
@@ -261,7 +269,9 @@ var main = function () {
         }
         var entry = {
             rawName: item,
-            name: isFolder ? "\uD83D\uDCC1 ".concat(item) : "".concat(getFileEmoji(item), " ").concat(item),
+            name: isFolder
+                ? "\uD83D\uDCC1 ".concat(item)
+                : "".concat(noColor ? "📄" : getFileEmoji(item), " ").concat(item),
             size: size,
             sizeBytes: sizeBytes,
             mtimeMs: stats.mtimeMs,
@@ -330,7 +340,7 @@ var main = function () {
     console.log("Total items:  ".concat(colorize(String(fullList.length), "33")));
     console.log("Total size:  ".concat(colorize(prettierBytes(totalSizeBytes) + (hadIncompleteSize ? "+" : ""), "33"), "\n"));
     if (hadIncompleteSize) {
-        console.error("Note: sizes marked with + are incomplete — some subfolder contents couldn't be read (permission denied).");
+        console.error("Note: sizes marked with + are incomplete — either a permission error, or the folder is too large to fully scan quickly.");
     }
 };
 if (process.argv[3] == "--debug") {
