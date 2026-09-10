@@ -2,7 +2,7 @@
   "name": "ls-table",
   "version": "1.2.7",
   "description": "",
-  "main": "./bin/index.ts",
+  "main": "./bin/index.js",
   "bin": {
     "ls-table": "./bin/index.js",
     "lst": "./bin/index.js"
